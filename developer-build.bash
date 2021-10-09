@@ -30,7 +30,7 @@
 TOP_DIR=$PWD
 NEED_MEMORY=524288
 BUILD_LINK=$TOP_DIR/build
-BUILD_DIR=/dev/shm/indi-build
+BUILD_DIR=./build
 
 
 
