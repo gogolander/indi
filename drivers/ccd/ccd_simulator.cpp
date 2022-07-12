@@ -116,6 +116,9 @@ bool CCDSim::initProperties()
 {
     INDI::CCD::initProperties();
 
+    CaptureFormat format = {"INDI_MONO", "Mono", 16, true};
+    addCaptureFormat(format);
+
     IUFillNumber(&SimulatorSettingsN[SIM_XRES], "SIM_XRES", "CCD X resolution", "%4.0f", 512, 8192, 512, 1280);
     IUFillNumber(&SimulatorSettingsN[SIM_YRES], "SIM_YRES", "CCD Y resolution", "%4.0f", 512, 8192, 512, 1024);
     IUFillNumber(&SimulatorSettingsN[SIM_XSIZE], "SIM_XSIZE", "CCD X Pixel Size", "%4.2f", 1, 30, 5, 5.2);
@@ -545,7 +548,7 @@ int CCDSim::DrawCcdFrame(INDI::CCDChip * targetChip)
     else
         targetFocalLength = guiderFocalLength;
 
-    if (ShowStarField)
+    if (ShowStarField && GainN[0].value > 0)
     {
         float PEOffset {0};
         float decDrift {0};
@@ -821,8 +824,6 @@ int CCDSim::DrawCcdFrame(INDI::CCDChip * targetChip)
                 //  is much brighter than at night
                 glow = m_SkyGlow / 10;
             }
-
-            //fprintf(stderr,"Using glow %4.2f\n",glow);
 
             // Flux represents one second, scale up linearly for exposure time
             float const skyflux = flux(glow) * exposure_time;
@@ -1100,6 +1101,7 @@ bool CCDSim::ISNewNumber(const char * dev, const char * name, double values[], c
             //  Reset our parameters now
             setupParameters();
             IDSetNumber(&SimulatorSettingsNP, nullptr);
+            saveConfig(true, SimulatorSettingsNP.name);
             return true;
         }
         // Record PE EQ to simulate different position in the sky than actual mount coordinate
@@ -1489,9 +1491,11 @@ void * CCDSim::streamVideo()
     return nullptr;
 }
 
-void CCDSim::addFITSKeywords(fitsfile *fptr, INDI::CCDChip *targetChip)
+void CCDSim::addFITSKeywords(INDI::CCDChip *targetChip)
 {
-    INDI::CCD::addFITSKeywords(fptr, targetChip);
+    INDI::CCD::addFITSKeywords(targetChip);
+
+    auto fptr = *targetChip->fitsFilePointer();
 
     int status = 0;
     fits_update_key_dbl(fptr, "Gain", GainN[0].value, 3, "Gain", &status);
@@ -1568,5 +1572,11 @@ bool CCDSim::loadNextImage()
     }
 
     fits_close_file(fptr, &status);
+    return true;
+}
+
+bool CCDSim::SetCaptureFormat(uint8_t index)
+{
+    INDI_UNUSED(index);
     return true;
 }
